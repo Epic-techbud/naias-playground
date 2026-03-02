@@ -381,7 +381,7 @@ html,body{width:100%;height:100%;overflow:hidden;touch-action:none;-webkit-user-
 <div id="app">
 
 <!-- Login / Profile Selection -->
-<div id="screen-login">
+<div id="screen-login" class="hidden">
   <div class="login-balloon">&#x1F388;</div>
   <div class="login-title">Naia's Playground</div>
   <div class="login-subtitle" id="loginSubtitle">Who's playing today?</div>
@@ -981,6 +981,8 @@ const AVATAR_CHOICES = [
 
   // -- Render profile cards --
   function renderLoginScreen() {
+    // Show login screen
+    loginScreen.classList.remove('hidden');
     const profiles = ProfileManager.loadProfiles();
     profileGrid.innerHTML = '';
 
@@ -1275,21 +1277,30 @@ const AVATAR_CHOICES = [
     renderLoginScreen();
   };
 
-  // Auto-create Naia's profile on first ever launch
+  // Auto-create Naia's profile on first ever launch AND auto-login
+  let didAutoLogin = false;
   (function firstRunSetup() {
     const profiles = ProfileManager.loadProfiles();
     if (profiles.length === 0) {
       const naia = ProfileManager.createProfile('Naia', '1234', 'unicorn');
       if (naia) {
-        // Auto-login — skip the PIN screen on first run
         loginWithProfile(naia);
-        return; // Don't render login screen
+        didAutoLogin = true;
+        return;
       }
+    }
+    // If only one profile exists, auto-login (skip profile selection)
+    if (profiles.length === 1) {
+      loginWithProfile(profiles[0]);
+      didAutoLogin = true;
+      return;
     }
   })();
 
-  // Initial render (only reached if profiles already exist)
-  renderLoginScreen();
+  // Only show login screen if we didn't auto-login
+  if (!didAutoLogin) {
+    renderLoginScreen();
+  }
 })();
 
 // Do NOT auto-load here — login flow handles NaiaAI.load() + Progress.updateStreak()
