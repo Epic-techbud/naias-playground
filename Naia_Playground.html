@@ -984,7 +984,7 @@ try { AC = new (window.AudioContext||window.webkitAudioContext)(); } catch(e) { 
 function resumeAC(){if(!AC) return; if(AC.state==='suspended')AC.resume()}
 function tone(f,d,t='sine',v=0.15){if(!AC) return; const o=AC.createOscillator(),g=AC.createGain();o.type=t;o.frequency.setValueAtTime(f,AC.currentTime);g.gain.setValueAtTime(v,AC.currentTime);g.gain.exponentialRampToValueAtTime(0.001,AC.currentTime+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d)}
 function pop(){tone(800+Math.random()*400,.1,'sine',.12);setTimeout(()=>tone(1200+Math.random()*300,.08,'sine',.08),30)}
-function say(t){if('speechSynthesis'in window){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=.85;u.pitch=1.4;u.volume=.7;speechSynthesis.speak(u)}}
+function say(t,onend){if('speechSynthesis'in window){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=.85;u.pitch=1.4;u.volume=.7;if(onend)u.onend=onend;speechSynthesis.speak(u)}}
 
 const SND={
   cat:()=>{tone(550,.15);setTimeout(()=>tone(750,.2),150)},
@@ -1837,7 +1837,8 @@ floatMusic.addEventListener('pointerdown',e=>{e.stopPropagation();resumeAC();mus
     stick:`<svg width="150" height="170" viewBox="0 0 85 95"><rect x="10" y="35" width="65" height="58" fill="#A0724A" stroke="#8B5E3C" stroke-width="2"/><polygon points="3,38 42,5 82,38" fill="#B8860B" stroke="#8B5E3C" stroke-width="2"/><rect x="32" y="55" width="20" height="33" rx="2" fill="#6B3A1A"/><circle cx="48" cy="73" r="2" fill="#FFD700"/><line x1="25" y1="40" x2="25" y2="90" stroke="#8B5E3C" stroke-width="3"/><line x1="55" y1="40" x2="55" y2="90" stroke="#8B5E3C" stroke-width="3"/><text x="42" y="28" text-anchor="middle" font-size="8" fill="#6B3A1A" font-family="Comic Sans MS,cursive">Sticks</text></svg>`,
     brick:`<svg width="150" height="170" viewBox="0 0 90 100"><rect x="8" y="32" width="74" height="65" fill="#C0392B" stroke="#922B21" stroke-width="2"/><polygon points="2,35 45,2 88,35" fill="#E74C3C" stroke="#922B21" stroke-width="2"/><rect x="35" y="58" width="22" height="36" rx="2" fill="#6B3A1A"/><circle cx="52" cy="78" r="2.5" fill="#FFD700"/><line x1="8" y1="42" x2="82" y2="42" stroke="#922B21" stroke-width="1"/><line x1="8" y1="52" x2="82" y2="52" stroke="#922B21" stroke-width="1"/><rect x="60" y="5" width="12" height="22" fill="#922B21"/><text x="45" y="25" text-anchor="middle" font-size="8" fill="#fff" font-family="Comic Sans MS,cursive">Bricks</text></svg>`
   };
-  let storyState='IDLE',tapCount=0,storyAnimFrame=null;
+  let storyState='IDLE',tapCount=0,storyAnimFrame=null,storyTid=null;
+  function storyNext(fn,delay){clearTimeout(storyTid);storyTid=setTimeout(fn,delay||500);}
   const storyChars={};
   const storyHouses={};
 
@@ -1867,14 +1868,14 @@ floatMusic.addEventListener('pointerdown',e=>{e.stopPropagation();resumeAC();mus
       S.appendChild(el);
       storyChars[cd.key]={el,x,y,tx:x,ty:y};
     });
-    storyState='IDLE';tapCount=0;
+    storyState='IDLE';tapCount=0;clearTimeout(storyTid);
     startStoryPhase('INTRO');
   }
 
-  function narrate(text){
+  function narrate(text,then){
     S.querySelectorAll('.story-narration,.story-tap-hint,.story-btn-wrap').forEach(e=>e.remove());
     const n=document.createElement('div');n.className='story-narration';n.textContent=text;
-    S.appendChild(n);say(text);
+    S.appendChild(n);say(text,then?()=>storyNext(then,600):null);
   }
   function showHint(text){
     S.querySelectorAll('.story-tap-hint').forEach(e=>e.remove());
@@ -1928,24 +1929,21 @@ floatMusic.addEventListener('pointerdown',e=>{e.stopPropagation();resumeAC();mus
     const W=innerWidth,H=innerHeight-80;
     switch(phase){
       case 'INTRO':
-        narrate('Once upon a time, three little pigs built their houses...');
+        narrate('Once upon a time, three little pigs built their houses...',()=>startStoryPhase('WOLF_APPEARS'));
         moveChar('pig1',W*.12,H*.5);
         moveChar('pig2',W*.38,H*.5);
         moveChar('pig3',W*.68,H*.5);
-        setTimeout(()=>startStoryPhase('WOLF_APPEARS'),4000);
         break;
       case 'WOLF_APPEARS':
-        narrate('Then came the Big Bad Wolf!');
+        narrate('Then came the Big Bad Wolf!',()=>startStoryPhase('STRAW_HOUSE'));
         storyChars.wolf.el.style.opacity='1';
         storyChars.wolf.el.style.transition='opacity .5s';
         storyChars.wolf.x=W*1.05;storyChars.wolf.tx=W*.88;storyChars.wolf.el.style.left=storyChars.wolf.x+'px';
         if(!storyAnimFrame)storyAnimFrame=requestAnimationFrame(lerpChars);
         SND.wolf();
-        // Pigs freeze
         [storyChars.pig1,storyChars.pig2,storyChars.pig3].forEach(p=>{
           p.el.classList.add('scared');setTimeout(()=>p.el.classList.remove('scared'),600);
         });
-        setTimeout(()=>startStoryPhase('STRAW_HOUSE'),3000);
         break;
       case 'STRAW_HOUSE':
         narrate('Tap the wolf to huff and puff!');
