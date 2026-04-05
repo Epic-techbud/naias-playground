@@ -148,13 +148,13 @@ html,body{width:100%;height:100%;overflow:hidden;touch-action:none;-webkit-user-
 /* Floating buttons */
 .float-btn{position:fixed;z-index:190;width:48px;height:48px;border-radius:50%;border:3px solid rgba(255,255,255,.9);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 10px rgba(0,0,0,.2);transition:transform .2s}
 .float-btn:active{transform:scale(.9)}
-.float-music{top:14px;left:14px;background:linear-gradient(135deg,#FF6BD6,#FFD66B)}
+.float-music{top:46px;left:14px;background:linear-gradient(135deg,#FF6BD6,#FFD66B)}
 .float-music.playing{animation:musicPulse 1s ease-in-out infinite}
 @keyframes musicPulse{0%,100%{box-shadow:0 3px 10px rgba(255,107,214,.3)}50%{box-shadow:0 3px 20px rgba(255,107,214,.7)}}
-.float-draw{top:14px;right:14px;background:linear-gradient(135deg,#FF4081,#7C4DFF)}
+.float-draw{top:46px;right:14px;background:linear-gradient(135deg,#FF4081,#7C4DFF)}
 .float-draw.drawing-active{border-color:#FF4081;animation:drawPulse 1s ease-in-out infinite}
 @keyframes drawPulse{0%,100%{box-shadow:0 0 8px #FF4081}50%{box-shadow:0 0 20px #FF4081}}
-.float-theme{top:14px;left:68px;background:linear-gradient(135deg,#87CEEB,#FF6B35,#1B2838,#00BCD4);background-size:400% 400%;animation:themeGrad 6s ease infinite;display:none}
+.float-theme{top:46px;left:68px;background:linear-gradient(135deg,#87CEEB,#FF6B35,#1B2838,#00BCD4);background-size:400% 400%;animation:themeGrad 6s ease infinite;display:none}
 @keyframes themeGrad{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 
 /* Story screen */
@@ -195,7 +195,7 @@ html,body{width:100%;height:100%;overflow:hidden;touch-action:none;-webkit-user-
 /* Game play area */
 .game-area{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;padding-top:10px}
 .game-area.active{display:flex}
-.game-back{position:absolute;top:12px;left:12px;z-index:60;padding:8px 16px;border-radius:12px;background:rgba(0,0,0,.15);color:#fff;font-weight:700;cursor:pointer;font-size:14px}
+.game-back{position:absolute;bottom:80px;left:50%;transform:translateX(-50%);z-index:60;padding:10px 28px;border-radius:20px;background:rgba(0,0,0,.25);color:#fff;font-weight:700;cursor:pointer;font-size:15px}
 .game-score-bar{font-size:18px;font-weight:700;color:#333;margin:8px 0}
 .game-prompt-text{font-size:clamp(16px,4vw,22px);font-weight:700;color:#333;background:rgba(255,255,255,.9);border-radius:16px;padding:10px 20px;margin:8px;text-align:center;box-shadow:0 3px 10px rgba(0,0,0,.1)}
 .memory-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:15px auto;width:min(90%,360px)}
@@ -758,6 +758,7 @@ const Progress = {
     document.getElementById('luTitle').textContent = 'LEVEL UP!';
     document.getElementById('luSubtitle').textContent = 'Level ' + this.level + ' - ' + this.getTitle();
     overlay.classList.add('active');
+    [523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>playSound(f,0.2),i*100));
     // Confetti burst
     const app = document.getElementById('app');
     for (let i = 0; i < 30; i++) {
@@ -983,8 +984,52 @@ let AC;
 try { AC = new (window.AudioContext||window.webkitAudioContext)(); } catch(e) { AC = null; }
 function resumeAC(){if(!AC) return; if(AC.state==='suspended')AC.resume()}
 function tone(f,d,t='sine',v=0.15){if(!AC) return; const o=AC.createOscillator(),g=AC.createGain();o.type=t;o.frequency.setValueAtTime(f,AC.currentTime);g.gain.setValueAtTime(v,AC.currentTime);g.gain.exponentialRampToValueAtTime(0.001,AC.currentTime+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d)}
+// playSound(frequency, duration) — frequency: 200=bass, 2000=squeak; duration in seconds
+function playSound(frequency,duration){resumeAC();tone(frequency,duration)}
+// Pre-warm AC and pre-build scratch buffer on first user gesture anywhere
+let _scratchBuf=null;
+document.addEventListener('pointerdown',function warmAC(){
+  if(AC&&AC.state==='suspended')AC.resume();
+  if(AC&&!_scratchBuf){
+    const samples=Math.floor(AC.sampleRate*0.5);
+    _scratchBuf=AC.createBuffer(1,samples,AC.sampleRate);
+    const d=_scratchBuf.getChannelData(0);
+    for(let i=0;i<samples;i++)d[i]=Math.random()*2-1;
+  }
+},{capture:true,once:true});
+let _scratchSrc=null,_scratchGain=null;
+function startScratch(){
+  if(!AC)return;
+  stopScratch();
+  if(!_scratchBuf){
+    const samples=Math.floor(AC.sampleRate*0.5);
+    _scratchBuf=AC.createBuffer(1,samples,AC.sampleRate);
+    const d=_scratchBuf.getChannelData(0);
+    for(let i=0;i<samples;i++)d[i]=Math.random()*2-1;
+  }
+  _scratchSrc=AC.createBufferSource();_scratchSrc.buffer=_scratchBuf;_scratchSrc.loop=true;
+  const bp=AC.createBiquadFilter();bp.type='bandpass';bp.frequency.value=800;bp.Q.value=1.8;
+  _scratchGain=AC.createGain();_scratchGain.gain.setValueAtTime(0.25,AC.currentTime);
+  _scratchSrc.connect(bp);bp.connect(_scratchGain);_scratchGain.connect(AC.destination);
+  _scratchSrc.start();
+}
+function stopScratch(){
+  if(_scratchSrc){try{_scratchSrc.stop();}catch(e){}}_scratchSrc=null;_scratchGain=null;
+}
 function pop(){tone(800+Math.random()*400,.1,'sine',.12);setTimeout(()=>tone(1200+Math.random()*300,.08,'sine',.08),30)}
-function say(t,onend){if('speechSynthesis'in window){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=.85;u.pitch=1.4;u.volume=.7;if(onend)u.onend=onend;speechSynthesis.speak(u)}}
+let _femaleVoice=null;
+function getFemaleVoice(){
+  if(_femaleVoice)return _femaleVoice;
+  const voices=speechSynthesis.getVoices();
+  const femaleNames=['zira','samantha','google us english','victoria','karen','moira','fiona','tessa','veena','susan','female'];
+  for(const name of femaleNames){
+    const v=voices.find(v=>v.name.toLowerCase().includes(name)&&v.lang.startsWith('en'));
+    if(v){_femaleVoice=v;return v;}
+  }
+  return voices.find(v=>v.lang.startsWith('en'))||null;
+}
+if('speechSynthesis'in window)speechSynthesis.addEventListener('voiceschanged',()=>{_femaleVoice=null;getFemaleVoice()});
+function say(t,onend,pitch=1.4,rate=0.85){if(!('speechSynthesis'in window))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=rate;u.pitch=pitch;u.volume=.7;const v=getFemaleVoice();if(v)u.voice=v;if(onend)u.onend=onend;speechSynthesis.speak(u)}
 
 const SND={
   cat:()=>{tone(550,.15);setTimeout(()=>tone(750,.2),150)},
@@ -1010,6 +1055,33 @@ const SND={
   penguin:()=>{tone(500,.1,'square',.08);setTimeout(()=>tone(600,.08,'square',.06),80);setTimeout(()=>tone(500,.1,'square',.06),160)},
   giraffe:()=>{tone(400,.2,'triangle',.08);setTimeout(()=>tone(500,.15,'triangle',.06),150)},
   bee:()=>{for(let i=0;i<8;i++)setTimeout(()=>tone(300+Math.random()*100,.04,'sawtooth',.04),i*30)}
+};
+
+// Per-animal voice: {text, pitch (0.1–2), rate (0.1–2)}
+const VOICE={
+  kitty:  {text:'Meow!',          pitch:2.0, rate:1.2},
+  cat:    {text:'Purrrr...',      pitch:2.0, rate:0.8},
+  puppy:  {text:'Woof woof!',     pitch:2.0, rate:1.5},
+  bunny:  {text:'Squeak!',        pitch:2.0, rate:1.4},
+  unicorn:{text:'La la la!',      pitch:2.0, rate:1.3},
+  butterfly:{text:'Flutter flutter!', pitch:2.0, rate:1.8},
+  pig1:   {text:'Oink oink!',     pitch:1.9, rate:1.1},
+  pig2:   {text:'Oink!',          pitch:1.9, rate:1.3},
+  pig3:   {text:'Snort snort!',   pitch:1.5, rate:0.7},
+  birdie: {text:'Tweet tweet!',   pitch:2.0, rate:1.7},
+  bee:    {text:'Bzzz bzzz!',     pitch:2.0, rate:1.6},
+  ladybug:{text:'Hello there!',   pitch:2.0, rate:1.2},
+  owl:    {text:'Hoo hoo...',     pitch:1.4, rate:0.7},
+  froggy: {text:'Ribbit ribbit!', pitch:1.7, rate:1.0},
+  bear:   {text:'Grrrr!',         pitch:1.2, rate:0.8},
+  wolf:   {text:'Awoooo!',        pitch:1.3, rate:0.6},
+  elephant:{text:'Pawoooo!',      pitch:1.2, rate:0.7},
+  lion:   {text:'Roarrr!',        pitch:1.1, rate:0.7},
+  dolphin:{text:'Eee eee!',       pitch:2.0, rate:1.5},
+  penguin:{text:'Squawk!',        pitch:2.0, rate:1.2},
+  giraffe:{text:'Hmmmm...',       pitch:1.8, rate:0.9},
+  turtle: {text:'...hello...',    pitch:1.6, rate:0.6},
+  vampire:{text:'Mwahahaha!',     pitch:1.6, rate:0.9},
 };
 
 // ─── SVG Definitions (moved before login IIFE to avoid TDZ) ───
@@ -1092,14 +1164,8 @@ const STORY_ANIMALS=['pig1','pig2','pig3','wolf'];
       profileGrid.appendChild(card);
     });
 
-    // "New" card
-    if (profiles.length < ProfileManager.MAX_PROFILES) {
-      const newCard = document.createElement('div');
-      newCard.className = 'profile-card-new';
-      newCard.innerHTML = '<div class="pcn-plus">+</div><div class="pcn-label">New</div>';
-      newCard.onclick = () => openCreateProfile();
-      profileGrid.appendChild(newCard);
-    }
+    // "New" card — hidden, only Naia allowed
+    // if (profiles.length < ProfileManager.MAX_PROFILES) { ... }
   }
 
   function escHtml(s) {
@@ -1134,11 +1200,14 @@ const STORY_ANIMALS=['pig1','pig2','pig3','wolf'];
     const num = btn.dataset.num;
     if (num === 'del') {
       pinEntry = pinEntry.slice(0, -1);
+      playSound(350, 0.08);
     } else if (num === 'clear') {
       pinEntry = '';
+      playSound(300, 0.1);
     } else {
       if (pinEntry.length >= 4) return;
       pinEntry += num;
+      playSound(400 + pinEntry.length * 80, 0.08);
     }
     updatePinDots(document.getElementById('pinDots'), pinEntry);
     document.getElementById('pinError').textContent = '';
@@ -1356,38 +1425,30 @@ const STORY_ANIMALS=['pig1','pig2','pig3','wolf'];
   };
 
 
-  // Auto-create Naia's profile on first ever launch AND auto-login
-  let didAutoLogin = false;
+  // Always require PIN on launch — auto-create profiles if missing
   (function firstRunSetup() {
     try {
       const profiles = ProfileManager.loadProfiles();
       if (profiles.length === 0) {
-        const naia = ProfileManager.createProfile('Naia', '1234', 'unicorn');
-        if (naia) {
-          loginWithProfile(naia);
-          didAutoLogin = true;
-          return;
-        }
+        ProfileManager.createProfile('Naia', '2023', 'unicorn');
       }
-      // If only one profile exists, auto-login (skip profile selection)
-      if (profiles.length === 1) {
-        loginWithProfile(profiles[0]);
-        didAutoLogin = true;
-        return;
+      // Remove old "Test" profile if it exists
+      const all = ProfileManager.loadProfiles();
+      const oldTest = all.find(p => p.name === 'Test');
+      if (oldTest) ProfileManager.deleteProfile(oldTest.id);
+      if (!all.find(p => p.name === 'Naio Test')) {
+        ProfileManager.createProfile('Naio Test', '1234', 'bear');
       }
+      // Always show login screen with both profiles
+      const updated = ProfileManager.loadProfiles();
+      renderLoginScreen();
+      if (updated.length === 1) openPinEntry(updated[0]);
     } catch(e) {
       console.error('Login error:', e);
-      // Emergency fallback: show home screen
-      document.getElementById('screen-login').style.display = 'none';
-      document.getElementById('screen-home').classList.add('active');
-      document.getElementById('nav-bar').style.display = 'flex';
+      // Always force login screen — never bypass to home on error
+      try { renderLoginScreen(); } catch(e2) {}
     }
   })();
-
-  // Only show login screen if we didn't auto-login
-  if (!didAutoLogin) {
-    try { renderLoginScreen(); } catch(e) { console.error('renderLoginScreen error:', e); }
-  }
 })();
 
 // Do NOT auto-load here — login flow handles NaiaAI.load() + Progress.updateStreak()
@@ -1586,7 +1647,7 @@ function checkSocial(ma,allAnimals,container){
       dragEl.style.zIndex=10;dragEl.classList.remove('active');
       if(!isDrag){
         dragEl.style.animation='none';void dragEl.offsetHeight;dragEl.classList.add('bouncing');
-        SND[a.key]();say(NAMES[a.key]);
+        SND[a.key]();const v=VOICE[a.key];v?say(v.text,null,v.pitch,v.rate):say(NAMES[a.key]);
         particles(container,a.x+40,a.y+40,CLR[a.key]);
         setTimeout(()=>{dragEl.classList.remove('bouncing');dragEl.style.animation=''},500);
       } else {
@@ -1636,20 +1697,31 @@ document.getElementById('heartBadge').addEventListener('pointerdown',e=>{
   for(let i=0;i<20;i++){setTimeout(()=>{const s=document.createElement('div');s.className='star';s.textContent=h[~~(Math.random()*h.length)];s.style.cssText=`left:${Math.random()*innerWidth}px;top:-30px;font-size:${18+Math.random()*20}px;animation-duration:${1.2+Math.random()*1.5}s`;app.appendChild(s);setTimeout(()=>s.remove(),2800)},i*50)}
 });
 
-// ─── Parent Dashboard Access (triple-tap title or XP badge) ───
+// ─── Home card sounds ───
+const homeCardNotes={'card-farm':523,'card-ocean':659,'card-safari':587,'card-story':784,'card-games':880,'card-music':1047,'card-learn':440};
+document.getElementById('screen-home').addEventListener('pointerdown',e=>{
+  const card=e.target.closest('.home-card');
+  if(!card)return;
+  const noteKey=Object.keys(homeCardNotes).find(k=>card.classList.contains(k));
+  playSound(homeCardNotes[noteKey]||600,0.12);
+},{capture:true});
+
+// ─── Title triple-tap: budge animation ───
 (function(){
   let titleTaps=0,titleTimer=null;
-  function openParentDash(){goScreen('screen-parent');initParentDashboard()}
-  document.querySelector('.home-title').addEventListener('pointerdown',()=>{
+  const titleEl=document.querySelector('.home-title');
+  titleEl.addEventListener('pointerdown',()=>{
     titleTaps++;clearTimeout(titleTimer);
     titleTimer=setTimeout(()=>titleTaps=0,800);
-    if(titleTaps>=3){titleTaps=0;openParentDash()}
+    if(titleTaps>=3){
+      titleTaps=0;
+      titleEl.style.animation='none';void titleEl.offsetHeight;
+      titleEl.style.animation='wrongShake 0.4s ease-in-out';
+      setTimeout(()=>titleEl.style.animation='',500);
+    }
   });
   document.getElementById('xpLevelBadge').addEventListener('pointerdown',function(e){
     e.stopPropagation();
-    titleTaps++;clearTimeout(titleTimer);
-    titleTimer=setTimeout(()=>titleTaps=0,800);
-    if(titleTaps>=3){titleTaps=0;openParentDash()}
   });
   // Password system — uses profile PIN
   let pdPinEntry='';
@@ -2256,18 +2328,19 @@ function initDrawScreen(){
   // Toolbar
   const tb=document.createElement('div');tb.className='draw-toolbar';
   const colors=['#FF4081','#FF9800','#FFD600','#4CAF50','#2196F3','#9C27B0','#fff'];
+  const colorNotes={'#FF4081':523,'#FF9800':587,'#FFD600':659,'#4CAF50':784,'#2196F3':440,'#9C27B0':494,'#fff':1047};
   let drawColor='#FF4081';
   colors.forEach(c=>{
     const d=document.createElement('div');d.className='draw-color';d.style.background=c;
     if(c===drawColor)d.classList.add('active');
-    d.onclick=()=>{drawColor=c;tb.querySelectorAll('.draw-color').forEach(x=>x.classList.remove('active'));d.classList.add('active')};
+    d.onclick=()=>{drawColor=c;tb.querySelectorAll('.draw-color').forEach(x=>x.classList.remove('active'));d.classList.add('active');playSound(colorNotes[c]||600,0.12)};
     tb.appendChild(d);
   });
   const clearBtn=document.createElement('div');clearBtn.className='draw-close';clearBtn.textContent='Clear';
-  clearBtn.onclick=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);tone(600,.15,'sine',.08)};
+  clearBtn.onclick=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);playSound(300,0.3)};
   tb.appendChild(clearBtn);
   const backBtn=document.createElement('div');backBtn.className='draw-close';backBtn.textContent='Back';
-  backBtn.onclick=()=>goScreen('screen-home');
+  backBtn.onclick=()=>{playSound(500,0.1);goScreen('screen-home')};
   tb.appendChild(backBtn);
   // Sticker buttons
   let activeSticker=null;
@@ -2302,6 +2375,7 @@ function initDrawScreen(){
   let drawing=false,hue=0,stickerDrawing=false,lastStamp={x:-999,y:-999};
   canvas.addEventListener('pointerdown',e=>{
     if(activeSticker){stickerDrawing=true;stampSticker(e.clientX,e.clientY);lastStamp={x:e.clientX,y:e.clientY};return;}
+    startScratch();
     drawing=true;ctx.beginPath();ctx.moveTo(e.clientX,e.clientY);ctx.lineWidth=6+Math.random()*6;ctx.lineCap='round';ctx.lineJoin='round'
   });
   canvas.addEventListener('pointermove',e=>{
@@ -2310,9 +2384,10 @@ function initDrawScreen(){
       if(Math.sqrt(dx*dx+dy*dy)>60){stampSticker(e.clientX,e.clientY);lastStamp={x:e.clientX,y:e.clientY};}
       return;
     }
-    if(!drawing)return;ctx.strokeStyle=drawColor==='#fff'?`hsl(${hue},90%,60%)`:drawColor;if(drawColor==='#fff')hue=(hue+2)%360;ctx.lineTo(e.clientX,e.clientY);ctx.stroke();ctx.beginPath();ctx.moveTo(e.clientX,e.clientY)
+    if(!drawing)return;
+    ctx.strokeStyle=drawColor==='#fff'?`hsl(${hue},90%,60%)`:drawColor;if(drawColor==='#fff')hue=(hue+2)%360;ctx.lineTo(e.clientX,e.clientY);ctx.stroke();ctx.beginPath();ctx.moveTo(e.clientX,e.clientY)
   });
-  canvas.addEventListener('pointerup',()=>{drawing=false;stickerDrawing=false;});
+  canvas.addEventListener('pointerup',()=>{drawing=false;stickerDrawing=false;stopScratch();});
   canvas.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
 }
 
@@ -2590,6 +2665,7 @@ function initDrawScreen(){
     const _skillKey=_skillMap[type]||type;
     function correct(el){
       el.classList.add('correct');[523,659,784].forEach((f,i)=>setTimeout(()=>tone(f,.15,'sine',.08),i*60));
+      playSound(1200,0.15);
       say(type==='bigsmall'?'Correct!':'Great job!');
       NaiaAI.record(_skillKey,true,Date.now()-_qStartTime);
       Progress.addXP(10);
@@ -2597,6 +2673,7 @@ function initDrawScreen(){
     }
     function wrong(el){
       el.classList.add('incorrect');tone(200,.2,'triangle',.06);
+      playSound(180,0.25);
       say('Almost! Try again!');
       NaiaAI.record(_skillKey,false,Date.now()-_qStartTime);
       setTimeout(()=>el.classList.remove('incorrect'),400);
@@ -2756,21 +2833,7 @@ setInterval(()=>NaiaAI.save(),30000);
 // ─── Initial mastery dots ───
 setTimeout(updateMasteryDots,3000);
 
-// ─── Fallback: if no screen is active after 5s, force-show home ───
-setTimeout(function(){
-  var anyActive=document.querySelector('.screen.active');
-  if(!anyActive){
-    console.warn('Fallback: no screen active after 5s, showing home');
-    var login=document.getElementById('screen-login');
-    if(login) login.style.display='none';
-    var home=document.getElementById('screen-home');
-    if(home) home.classList.add('active');
-    var nav=document.getElementById('nav-bar');
-    if(nav) nav.style.display='flex';
-    var xp=document.getElementById('xp-bar');
-    if(xp) xp.style.display='flex';
-  }
-},5000);
+// ─── Fallback disabled — login screen must be used ───
 </script>
 </body>
 </html>
