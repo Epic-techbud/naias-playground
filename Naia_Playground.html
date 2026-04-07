@@ -2336,6 +2336,14 @@ function initDrawScreen(){
     d.onclick=()=>{drawColor=c;tb.querySelectorAll('.draw-color').forEach(x=>x.classList.remove('active'));d.classList.add('active');playSound(colorNotes[c]||600,0.12)};
     tb.appendChild(d);
   });
+  let rainbowMode=false;
+  const rainbowBtn=document.createElement('div');rainbowBtn.className='draw-close';rainbowBtn.textContent='🌈 Rainbow: OFF';
+  rainbowBtn.onclick=()=>{
+    rainbowMode=!rainbowMode;
+    rainbowBtn.textContent=rainbowMode?'🌈 Rainbow: ON':'🌈 Rainbow: OFF';
+    rainbowBtn.style.outline=rainbowMode?'2px solid #fff':'';
+  };
+  tb.appendChild(rainbowBtn);
   const clearBtn=document.createElement('div');clearBtn.className='draw-close';clearBtn.textContent='Clear';
   clearBtn.onclick=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);playSound(300,0.3)};
   tb.appendChild(clearBtn);
@@ -2385,7 +2393,7 @@ function initDrawScreen(){
       return;
     }
     if(!drawing)return;
-    ctx.strokeStyle=drawColor==='#fff'?`hsl(${hue},90%,60%)`:drawColor;if(drawColor==='#fff')hue=(hue+2)%360;ctx.lineTo(e.clientX,e.clientY);ctx.stroke();ctx.beginPath();ctx.moveTo(e.clientX,e.clientY)
+    ctx.strokeStyle=(rainbowMode||drawColor==='#fff')?`hsl(${hue},90%,60%)`:drawColor;hue=(hue+(rainbowMode?10:2))%360;ctx.lineTo(e.clientX,e.clientY);ctx.stroke();ctx.beginPath();ctx.moveTo(e.clientX,e.clientY)
   });
   canvas.addEventListener('pointerup',()=>{drawing=false;stickerDrawing=false;stopScratch();});
   canvas.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
