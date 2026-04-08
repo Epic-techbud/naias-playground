@@ -136,6 +136,19 @@ html,body{width:100%;height:100%;overflow:hidden;touch-action:none;-webkit-user-
 #drawCanvas{position:absolute;top:0;left:0;width:100%;height:100%;z-index:6;pointer-events:none}
 #drawCanvas.active{pointer-events:auto;cursor:crosshair}
 
+/* Drawings gallery screen */
+#screen-drawings{background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;align-items:center}
+.drawings-title{font-size:clamp(22px,5vw,36px);color:#fff;text-shadow:0 2px 12px rgba(255,64,129,.5);margin:20px 0 6px;text-align:center}
+.drawings-subtitle{font-size:14px;color:rgba(255,255,255,.5);margin-bottom:16px}
+.drawings-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px;width:90%;max-width:620px;margin-bottom:30px}
+.drawing-card{border-radius:16px;overflow:hidden;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.4);transition:transform .2s,box-shadow .2s;background:#222;position:relative}
+.drawing-card:active{transform:scale(.95)}
+.drawing-card img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:#111}
+.drawing-card-label{padding:6px 8px;font-size:12px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:rgba(0,0,0,.4)}
+.drawing-card-del{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;background:rgba(255,60,60,.85);color:#fff;font-size:13px;line-height:22px;text-align:center;cursor:pointer;display:none}
+.drawing-card:hover .drawing-card-del{display:block}
+.drawings-empty{color:rgba(255,255,255,.45);font-size:18px;margin-top:60px;text-align:center;line-height:1.7}
+
 /* Nav bar */
 #nav-bar{position:fixed;bottom:0;left:0;right:0;height:70px;background:rgba(255,255,255,.95);backdrop-filter:blur(10px);display:flex;justify-content:space-around;align-items:center;z-index:200;box-shadow:0 -2px 15px rgba(0,0,0,.1);border-top:1px solid rgba(0,0,0,.05)}
 .nav-tab{display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;padding:6px 12px;border-radius:12px;transition:background .2s,transform .15s;min-width:60px}
@@ -516,6 +529,13 @@ html,body{width:100%;height:100%;overflow:hidden;touch-action:none;-webkit-user-
 <!-- Draw (full screen) -->
 <div id="screen-draw" class="screen"></div>
 
+<!-- Drawings gallery -->
+<div id="screen-drawings" class="screen">
+  <div class="drawings-title">🎨 My Drawings</div>
+  <div class="drawings-subtitle">Tap a drawing to load it</div>
+  <div class="drawings-grid" id="drawingsGrid"></div>
+</div>
+
 <!-- XP Bar -->
 <div id="xp-bar">
   <div class="xp-level-badge" id="xpLevelBadge">Lv 1</div>
@@ -567,6 +587,7 @@ html,body{width:100%;height:100%;overflow:hidden;touch-action:none;-webkit-user-
   <div class="nav-tab" data-screen="screen-games" onclick="goScreen('screen-games')"><div class="nav-icon">&#x2B50;</div><div class="nav-label">Games</div></div>
   <div class="nav-tab" data-screen="screen-music" onclick="goScreen('screen-music')"><div class="nav-icon">&#x1F3B9;</div><div class="nav-label">Music</div></div>
   <div class="nav-tab" data-screen="screen-learn" onclick="goScreen('screen-learn')"><div class="nav-icon">&#x1F4A1;</div><div class="nav-label">Learn</div></div>
+  <div class="nav-tab" data-screen="screen-drawings" onclick="goScreen('screen-drawings')"><div class="nav-icon">&#x1F5BC;</div><div class="nav-label">Drawings</div></div>
 </div>
 
 <!-- Floating buttons -->
@@ -1481,6 +1502,8 @@ function goScreen(id){
   if(xpBar) xpBar.style.display=(['splash','screen-draw'].includes(id))?'none':'flex';
   // Add top padding for XP bar on screens that need it
   if(el && !['splash','screen-draw'].includes(id)) el.style.paddingTop='40px';
+  // Refresh drawings gallery whenever it becomes visible
+  if(id==='screen-drawings') renderDrawingsGallery();
   // Stop ambient when leaving habitats
   if(!isHabitat && typeof stopAmbient==='function') stopAmbient();
   // Start ambient for habitat
@@ -2347,6 +2370,22 @@ function initDrawScreen(){
   const clearBtn=document.createElement('div');clearBtn.className='draw-close';clearBtn.textContent='Clear';
   clearBtn.onclick=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);playSound(300,0.3)};
   tb.appendChild(clearBtn);
+  // Save / Load
+  const DRAW_KEY='naiaPlayground_drawings';
+  function getDrawings(){return JSON.parse(localStorage.getItem(DRAW_KEY)||'{}')}
+  function putDrawings(d){localStorage.setItem(DRAW_KEY,JSON.stringify(d))}
+  const saveBtn=document.createElement('div');saveBtn.className='draw-close';saveBtn.textContent='💾 Save';
+  saveBtn.onclick=()=>{
+    const name=prompt('Name this drawing:');
+    if(!name)return;
+    const d=getDrawings();
+    d[name]=canvas.toDataURL('image/png');
+    putDrawings(d);
+    playSound(880,0.15);
+    saveBtn.textContent='✅ Saved!';
+    setTimeout(()=>{saveBtn.textContent='💾 Save'},1500);
+  };
+  tb.appendChild(saveBtn);
   const backBtn=document.createElement('div');backBtn.className='draw-close';backBtn.textContent='Back';
   backBtn.onclick=()=>{playSound(500,0.1);goScreen('screen-home')};
   tb.appendChild(backBtn);
@@ -2397,6 +2436,75 @@ function initDrawScreen(){
   });
   canvas.addEventListener('pointerup',()=>{drawing=false;stickerDrawing=false;stopScratch();});
   canvas.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+}
+
+// ─── Drawings Gallery ───
+const DRAW_KEY_GALLERY='naiaPlayground_drawings';
+function getDrawingsGlobal(){return JSON.parse(localStorage.getItem(DRAW_KEY_GALLERY)||'{}')}
+
+// Called by the draw screen to load a named drawing onto its canvas
+window.loadDrawingOntoCanvas=function(name){
+  const ds=document.getElementById('screen-draw');
+  // If draw screen not yet initialised, go there first then load
+  if(!ds.dataset.init){
+    goScreen('screen-draw');
+    initDrawScreen();
+  } else {
+    goScreen('screen-draw');
+  }
+  const canvas=ds.querySelector('canvas');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const dataURL=getDrawingsGlobal()[name];
+  if(!dataURL)return;
+  const img=new Image();
+  img.onload=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0);};
+  img.src=dataURL;
+  playSound(660,0.15);
+};
+
+function renderDrawingsGallery(){
+  const grid=document.getElementById('drawingsGrid');
+  if(!grid)return;
+  grid.innerHTML='';
+  const drawings=getDrawingsGlobal();
+  const names=Object.keys(drawings);
+  if(!names.length){
+    const empty=document.createElement('div');
+    empty.className='drawings-empty';
+    empty.innerHTML='No drawings saved yet!<br>🎨 Go draw something and tap <b>💾 Save</b>';
+    grid.appendChild(empty);
+    return;
+  }
+  names.forEach(name=>{
+    const card=document.createElement('div');
+    card.className='drawing-card';
+    const img=document.createElement('img');
+    img.src=drawings[name];
+    img.alt=name;
+    img.loading='lazy';
+    const label=document.createElement('div');
+    label.className='drawing-card-label';
+    label.textContent=name;
+    const del=document.createElement('div');
+    del.className='drawing-card-del';
+    del.textContent='×';
+    del.title='Delete';
+    del.addEventListener('pointerdown',e=>{
+      e.stopPropagation();
+      if(!confirm(`Delete "${name}"?`))return;
+      const d=getDrawingsGlobal();
+      delete d[name];
+      localStorage.setItem(DRAW_KEY_GALLERY,JSON.stringify(d));
+      renderDrawingsGallery();
+      playSound(300,0.2);
+    });
+    card.appendChild(img);
+    card.appendChild(label);
+    card.appendChild(del);
+    card.addEventListener('pointerdown',()=>loadDrawingOntoCanvas(name));
+    grid.appendChild(card);
+  });
 }
 
 // ─── Games System ───
