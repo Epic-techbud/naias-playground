@@ -388,6 +388,102 @@ html,body{width:100%;height:100%;overflow:hidden;touch-action:none;-webkit-user-
 #pd-password .pd-pw-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;width:200px;height:200px}
 #pd-password .pd-pw-zone{border:2px dashed #ccc;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#aaa;cursor:pointer;transition:border-color .2s}
 #pd-password .pd-pw-zone.tapped{border-color:#4CAF50;background:rgba(76,175,80,.1)}
+
+/* ── Color Mix Popup ── */
+#colorMixPopup{
+  position:fixed;inset:0;z-index:300;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.55);backdrop-filter:blur(6px);
+  opacity:0;pointer-events:none;transition:opacity .3s ease;
+}
+#colorMixPopup.open{opacity:1;pointer-events:auto}
+.cmix-box{
+  position:relative;
+  background:linear-gradient(160deg,#fff8fd,#e8f5ff,#fffde7);
+  border-radius:32px;padding:26px 22px 28px;
+  width:min(500px,96vw);
+  box-shadow:0 20px 60px rgba(0,0,0,.45);
+  text-align:center;
+  transform:scale(.75) translateY(40px);
+  transition:transform .35s cubic-bezier(.34,1.56,.64,1);
+}
+#colorMixPopup.open .cmix-box{transform:scale(1) translateY(0)}
+.cmix-title{font-size:28px;font-weight:700;color:#FF4081;margin-bottom:3px}
+.cmix-subtitle{font-size:15px;color:#bbb;margin-bottom:16px}
+.cmix-close{position:absolute;top:14px;right:18px;font-size:26px;cursor:pointer;color:#ccc;transition:color .15s;line-height:1}
+.cmix-close:hover{color:#888}
+
+/* Drag arena */
+.cmix-arena{
+  position:relative;width:100%;height:240px;
+  background:radial-gradient(ellipse at center,rgba(255,255,255,.75),rgba(210,235,255,.35));
+  border-radius:24px;border:2px dashed rgba(150,190,255,.45);
+  overflow:hidden;margin-bottom:18px;touch-action:none;
+}
+.cmix-arena-hint{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:15px;color:rgba(100,130,200,.55);pointer-events:none;
+  transition:opacity .3s;
+}
+
+/* Draggable blobs */
+.cmix-blob{
+  position:absolute;border-radius:50%;
+  border:6px solid rgba(255,255,255,.88);
+  box-shadow:0 8px 22px rgba(0,0,0,.24);
+  cursor:grab;touch-action:none;user-select:none;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;
+  color:rgba(255,255,255,.95);text-shadow:0 1px 5px rgba(0,0,0,.5);
+  will-change:left,top,background-color;
+}
+.cmix-blob.dragging{cursor:grabbing;z-index:5;box-shadow:0 16px 40px rgba(0,0,0,.38)}
+
+/* Animations */
+@keyframes cmixBurst{
+  0%{transform:scale(1);opacity:1}
+  45%{transform:scale(2.6);opacity:.4}
+  100%{transform:scale(0);opacity:0}
+}
+@keyframes cmixResultPop{
+  0%{transform:scale(0) rotate(-15deg);opacity:0}
+  65%{transform:scale(1.2) rotate(6deg);opacity:1}
+  100%{transform:scale(1) rotate(0);opacity:1}
+}
+@keyframes cmixSpark{
+  0%{transform:translate(0,0) scale(1);opacity:1}
+  100%{transform:translate(var(--sx),var(--sy)) scale(0);opacity:0}
+}
+@keyframes cmixSwatchPop{
+  0%{transform:scale(0) rotate(-15deg);opacity:0}
+  65%{transform:scale(1.2) rotate(6deg);opacity:1}
+  100%{transform:scale(1) rotate(0);opacity:1}
+}
+.cmix-blob.bursting{animation:cmixBurst .48s ease-out forwards;pointer-events:none}
+.cmix-spark{position:absolute;border-radius:50%;pointer-events:none;animation:cmixSpark .6s ease-out forwards}
+
+/* Result area */
+.cmix-result{
+  min-height:88px;
+  background:rgba(255,255,255,.65);border-radius:22px;padding:14px 18px;
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+}
+.cmix-result-swatch{
+  border-radius:50%;border:5px solid rgba(255,255,255,.9);
+  box-shadow:0 5px 18px rgba(0,0,0,.2);flex-shrink:0;
+  /* size and display set by JS so preview can reuse it */
+}
+.cmix-swatch-final{animation:cmixSwatchPop .5s cubic-bezier(.34,1.56,.64,1) forwards}
+.cmix-line1{font-size:20px;font-weight:700;color:#333}
+.cmix-line2{font-size:16px;color:#888}
+.cmix-again-btn{
+  display:none;margin-top:14px;
+  padding:14px 38px;border-radius:50px;border:none;
+  font-family:inherit;font-size:18px;font-weight:700;
+  background:linear-gradient(135deg,#FF6BD6,#6BDDFF);color:#fff;
+  cursor:pointer;box-shadow:0 5px 18px rgba(0,0,0,.15);transition:transform .15s;
+}
+.cmix-again-btn:active{transform:scale(.95)}
 </style>
 </head>
 <body>
@@ -595,6 +691,26 @@ html,body{width:100%;height:100%;overflow:hidden;touch-action:none;-webkit-user-
 <div class="float-btn float-draw" id="floatDraw" style="display:none">&#x1F3A8;</div>
 <div class="float-btn float-theme" id="floatTheme">&#x1F308;</div>
 
+
+</div>
+
+<!-- Color Mix Popup — lives outside #app so overflow:hidden can't clip it -->
+<div id="colorMixPopup">
+  <div class="cmix-box">
+    <span class="cmix-close" id="cmixClose">&#x2715;</span>
+    <div class="cmix-title">&#x1F3A8; Color Mixer</div>
+    <div class="cmix-subtitle">Drag two colors into each other!</div>
+    <!-- Blobs are created by JS inside here -->
+    <div class="cmix-arena" id="cmixArena">
+      <div class="cmix-arena-hint" id="cmixHint">Drag the circles together &#x1F447;</div>
+    </div>
+    <div class="cmix-result" id="cmixResult">
+      <div class="cmix-result-swatch" id="cmixSwatch" style="display:none"></div>
+      <div class="cmix-line1" id="cmixLine1">Drag two colors together!</div>
+      <div class="cmix-line2" id="cmixLine2"></div>
+    </div>
+    <button class="cmix-again-btn" id="cmixAgainBtn">&#x1F504; Mix Again!</button>
+  </div>
 </div>
 
 <script>
@@ -2386,6 +2502,10 @@ function initDrawScreen(){
     setTimeout(()=>{saveBtn.textContent='💾 Save'},1500);
   };
   tb.appendChild(saveBtn);
+  // 🧪 Mix button — opens the Color Mix popup from the draw toolbar
+  const colorMixBtn=document.createElement('div');colorMixBtn.className='draw-close';colorMixBtn.textContent='🧪 Mix';
+  colorMixBtn.onclick=()=>{ if(typeof openColorMixPopup==='function') openColorMixPopup(); };
+  tb.appendChild(colorMixBtn);
   const backBtn=document.createElement('div');backBtn.className='draw-close';backBtn.textContent='Back';
   backBtn.onclick=()=>{playSound(500,0.1);goScreen('screen-home')};
   tb.appendChild(backBtn);
@@ -2948,6 +3068,209 @@ setInterval(()=>NaiaAI.save(),30000);
 
 // ─── Initial mastery dots ───
 setTimeout(updateMasteryDots,3000);
+
+// ─── Color Mix Popup (gradual drag-blend) ──────────────────────────────
+(function(){
+  const BLOBS = [
+    {id:'red',    hex:'#F44336', name:'Red'   },
+    {id:'blue',   hex:'#2196F3', name:'Blue'  },
+    {id:'yellow', hex:'#FFEB3B', name:'Yellow'},
+  ];
+  const RECIPES = {
+    'blue+red':    {hex:'#8E24AA', name:'Purple',  line2:'Like a juicy grape! 🍇'},
+    'blue+yellow': {hex:'#4CAF50', name:'Green',   line2:'Like a green apple! 🍏'},
+    'red+yellow':  {hex:'#FF6F00', name:'Orange',  line2:'Like a bright orange! 🍊'},
+  };
+
+  // BLOB_D: diameter. BLEND_START: blending starts at this centre-distance.
+  // HIT_DIST: mix fires here.  t = clamp(1-(dist-HIT_DIST)/(BLEND_START-HIT_DIST),0,1)
+  const BLOB_D=90, BLOB_R=45, HIT_DIST=64, BLEND_START=115;
+
+  function hexToRgb(h){ const n=parseInt(h.replace('#',''),16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; }
+  function lerpColor(h1,h2,t){ const a=hexToRgb(h1),b=hexToRgb(h2); return 'rgb('+Math.round(a.r+(b.r-a.r)*t)+','+Math.round(a.g+(b.g-a.g)*t)+','+Math.round(a.b+(b.b-a.b)*t)+')'; }
+
+  let bs={}, isMixed=false;
+
+  function init(){
+    const arena=document.getElementById('cmixArena');
+    arena.querySelectorAll('.cmix-blob,.cmix-spark').forEach(n=>n.remove());
+    bs={}; isMixed=false;
+    const W=arena.offsetWidth||456, H=arena.offsetHeight||240;
+    const yc=(H-BLOB_D)/2;
+    const xs=[W*0.06,(W-BLOB_D)/2,W*0.94-BLOB_D];
+    BLOBS.forEach((b,i)=>{
+      const el=document.createElement('div');
+      el.className='cmix-blob';
+      el.style.cssText='background:'+b.hex+';left:'+xs[i]+'px;top:'+yc+'px;width:'+BLOB_D+'px;height:'+BLOB_D+'px';
+      el.textContent=b.name;
+      bs[b.id]={el,x:xs[i],y:yc,homeX:xs[i],homeY:yc};
+      el.addEventListener('pointerdown',e=>startDrag(e,b));
+      arena.appendChild(el);
+    });
+    const sw=document.getElementById('cmixSwatch');
+    sw.style.cssText='display:none;width:58px;height:58px;transition:background .06s';
+    sw.className='cmix-result-swatch';
+    document.getElementById('cmixLine1').textContent='Drag two colors together!';
+    document.getElementById('cmixLine2').textContent='';
+    document.getElementById('cmixAgainBtn').style.display='none';
+    document.getElementById('cmixHint').style.opacity='1';
+  }
+
+  function startDrag(e,blobDef){
+    if(isMixed)return;
+    e.preventDefault(); e.stopPropagation();
+    const blob=bs[blobDef.id];
+    const arena=document.getElementById('cmixArena');
+    const sx=e.clientX, sy=e.clientY, bx=blob.x, by=blob.y;
+    let prevClosestId=null;   // track which target blob was last tinted
+    blob.el.style.transition='';
+    blob.el.setPointerCapture(e.pointerId);
+    blob.el.classList.add('dragging');
+    document.getElementById('cmixHint').style.opacity='0';
+
+    function onMove(e){
+      if(isMixed)return;
+      const W=arena.offsetWidth, H=arena.offsetHeight;
+      const nx=Math.max(0,Math.min(W-BLOB_D, bx+e.clientX-sx));
+      const ny=Math.max(0,Math.min(H-BLOB_D, by+e.clientY-sy));
+      blob.x=nx; blob.y=ny;
+      blob.el.style.left=nx+'px'; blob.el.style.top=ny+'px';
+
+      let closestId=null, minDist=Infinity;
+      for(const oid in bs){
+        if(oid===blobDef.id)continue;
+        const d=Math.hypot(nx+BLOB_R-(bs[oid].x+BLOB_R), ny+BLOB_R-(bs[oid].y+BLOB_R));
+        if(d<minDist){minDist=d; closestId=oid;}
+      }
+      if(closestId){
+        const t=Math.max(0,Math.min(1, 1-(minDist-HIT_DIST)/(BLEND_START-HIT_DIST)));
+        const key=[blobDef.id,closestId].sort().join('+');
+        const recipe=RECIPES[key];
+        // If the closest blob changed, restore the old target's color first
+        if(prevClosestId && prevClosestId!==closestId){
+          const pd=BLOBS.find(b=>b.id===prevClosestId);
+          bs[prevClosestId].el.style.background=pd.hex;
+        }
+        if(recipe&&t>0){
+          // Both blobs shift toward the result color as they get closer
+          const closestDef=BLOBS.find(b=>b.id===closestId);
+          blob.el.style.background=lerpColor(blobDef.hex,recipe.hex,t);
+          bs[closestId].el.style.background=lerpColor(closestDef.hex,recipe.hex,t);
+          prevClosestId=closestId;
+          showPreview(blobDef.hex,t,recipe);
+          if(minDist<=HIT_DIST) triggerMix(blobDef.id,closestId);
+        } else {
+          blob.el.style.background=blobDef.hex;
+          if(closestId){ const cd=BLOBS.find(b=>b.id===closestId); bs[closestId].el.style.background=cd.hex; }
+          prevClosestId=null;
+          resetPreview();
+        }
+      }
+    }
+
+    function onUp(){
+      if(!isMixed){
+        // Spring dragged blob home and restore both blobs' colors
+        blob.el.style.transition='left .38s cubic-bezier(.34,1.56,.64,1),top .38s cubic-bezier(.34,1.56,.64,1),background .3s ease';
+        blob.el.style.left=blob.homeX+'px'; blob.el.style.top=blob.homeY+'px';
+        blob.el.style.background=blobDef.hex;
+        blob.x=blob.homeX; blob.y=blob.homeY;
+        if(prevClosestId){
+          const pd=BLOBS.find(b=>b.id===prevClosestId);
+          bs[prevClosestId].el.style.transition='background .3s ease';
+          bs[prevClosestId].el.style.background=pd.hex;
+          setTimeout(()=>{if(bs[prevClosestId])bs[prevClosestId].el.style.transition='';},420);
+        }
+        resetPreview();
+        document.getElementById('cmixHint').style.opacity='1';
+        setTimeout(()=>{blob.el.style.transition='';},420);
+      }
+      blob.el.classList.remove('dragging');
+      blob.el.removeEventListener('pointermove',onMove);
+      blob.el.removeEventListener('pointerup',onUp);
+      blob.el.removeEventListener('pointercancel',onUp);
+    }
+    blob.el.addEventListener('pointermove',onMove);
+    blob.el.addEventListener('pointerup',onUp);
+    blob.el.addEventListener('pointercancel',onUp);
+  }
+
+  function showPreview(fromHex,t,recipe){
+    const sw=document.getElementById('cmixSwatch');
+    sw.style.display='block';
+    sw.style.background=lerpColor(fromHex,recipe.hex,t);
+    const pct=Math.round(t*100);
+    let msg;
+    if(pct<28) msg='Getting closer… 👀';
+    else if(pct<60) msg='Ooh, something’s happening! 🌈';
+    else if(pct<88) msg='Almost there! 🔥';
+    else msg='Let go now! ✨';
+    document.getElementById('cmixLine1').textContent=msg;
+    document.getElementById('cmixLine2').textContent='';
+  }
+
+  function resetPreview(){
+    document.getElementById('cmixSwatch').style.display='none';
+    document.getElementById('cmixLine1').textContent='Drag two colors together!';
+    document.getElementById('cmixLine2').textContent='';
+  }
+
+  function triggerMix(id1,id2){
+    if(isMixed)return;
+    isMixed=true;
+    const b1=bs[id1], b2=bs[id2];
+    const mx=(b1.x+b2.x)/2, my=(b1.y+b2.y)/2;
+    const mcx=mx+BLOB_R, mcy=my+BLOB_R;
+    [b1,b2].forEach(b=>{
+      b.el.style.transition='left .2s ease,top .2s ease';
+      b.el.style.left=mx+'px'; b.el.style.top=my+'px';
+    });
+    setTimeout(()=>{
+      b1.el.classList.add('bursting');
+      b2.el.classList.add('bursting');
+      spawnSparks(mcx,mcy);
+      setTimeout(()=>{
+        const key=[id1,id2].sort().join('+');
+        const recipe=RECIPES[key];
+        if(!recipe)return;
+        const arena=document.getElementById('cmixArena');
+        const rb=document.createElement('div');
+        rb.className='cmix-blob';
+        rb.style.cssText='background:'+recipe.hex+';left:'+mx+'px;top:'+my+'px;width:'+BLOB_D+'px;height:'+BLOB_D+'px;animation:cmixResultPop .5s cubic-bezier(.34,1.56,.64,1) forwards;pointer-events:none';
+        rb.textContent=recipe.name;
+        arena.appendChild(rb);
+        const sw=document.getElementById('cmixSwatch');
+        sw.style.background=recipe.hex; sw.style.display='block';
+        sw.classList.add('cmix-swatch-final');
+        document.getElementById('cmixLine1').textContent='The new color is '+recipe.name+'!';
+        document.getElementById('cmixLine2').textContent=recipe.line2;
+        document.getElementById('cmixAgainBtn').style.display='block';
+      },480);
+    },210);
+  }
+
+  function spawnSparks(cx,cy){
+    const arena=document.getElementById('cmixArena');
+    const cols=['#FF6BD6','#6BDDFF','#FFD66B','#A5D6A7','#CE93D8','#FF8A65'];
+    for(let i=0;i<16;i++){
+      const a=(i/16)*Math.PI*2, dist=38+Math.random()*45, size=8+Math.random()*10;
+      const sp=document.createElement('div');
+      sp.className='cmix-spark';
+      sp.style.cssText='width:'+size+'px;height:'+size+'px;left:'+(cx-size/2)+'px;top:'+(cy-size/2)+'px;background:'+cols[i%cols.length]+';--sx:'+(Math.cos(a)*dist).toFixed(1)+'px;--sy:'+(Math.sin(a)*dist).toFixed(1)+'px;animation-delay:'+(i*18)+'ms';
+      arena.appendChild(sp);
+      setTimeout(()=>sp.remove(),750);
+    }
+  }
+
+  window.openColorMixPopup=function(){
+    document.getElementById('colorMixPopup').classList.add('open');
+    setTimeout(init,40);
+  };
+  function closePopup(){document.getElementById('colorMixPopup').classList.remove('open');}
+  document.getElementById('cmixClose').addEventListener('click',closePopup);
+  document.getElementById('cmixAgainBtn').addEventListener('click',init);
+  document.getElementById('colorMixPopup').addEventListener('click',function(e){if(e.target===this)closePopup();});
+})();
 
 // ─── Fallback disabled — login screen must be used ───
 </script>

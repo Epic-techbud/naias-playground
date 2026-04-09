@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Color Mixing - Naia's Playground</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;font-family:'Comic Sans MS','Chalkboard SE',cursive,system-ui,sans-serif}
+#app{width:100vw;height:100vh;height:100dvh;position:relative;overflow:hidden;background:linear-gradient(135deg,#E8F5E9,#BBDEFB,#F3E5F5);display:flex;flex-direction:column;align-items:center}
+
+/* Header */
+.page-header{width:100%;display:flex;align-items:center;justify-content:center;padding:14px 16px 6px;position:relative;flex-shrink:0}
+.back-btn{position:absolute;left:16px;background:rgba(255,255,255,.7);border:none;border-radius:50%;width:44px;height:44px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15);transition:transform .15s}
+.back-btn:active{transform:scale(.9)}
+.page-title{font-size:clamp(22px,5vw,36px);color:#FF4081;text-shadow:0 3px 10px rgba(255,64,129,.3);text-align:center}
+
+/* Layout */
+.main-area{display:flex;flex-direction:column;align-items:center;width:100%;flex:1;overflow:hidden;padding:0 12px 12px}
+
+/* Color palette */
+.palette-label{font-size:14px;color:#888;margin-bottom:8px;letter-spacing:.5px}
+.palette{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;width:100%;max-width:460px;margin-bottom:12px}
+.color-btn{width:58px;height:58px;border-radius:50%;border:4px solid rgba(255,255,255,.8);cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.18);transition:transform .15s,box-shadow .15s;position:relative;flex-shrink:0}
+.color-btn:active{transform:scale(.92)}
+.color-btn.selected{border-color:#fff;box-shadow:0 0 0 4px rgba(0,0,0,.25),0 4px 16px rgba(0,0,0,.25);transform:scale(1.15)}
+.color-btn .color-label{position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:700;color:#555;white-space:nowrap}
+
+/* Mixing bowl */
+.bowl-area{display:flex;flex-direction:column;align-items:center;margin-bottom:10px}
+.bowl-wrapper{position:relative;width:150px;height:140px;display:flex;align-items:flex-end;justify-content:center}
+.bowl-svg{width:150px;height:140px;overflow:visible}
+.bowl-liquid{transition:fill .6s ease,opacity .4s ease}
+.bowl-glow{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);width:110px;height:60px;border-radius:50%;filter:blur(18px);opacity:.5;transition:background .6s ease;pointer-events:none}
+
+/* Drop zone instruction */
+.drop-hint{font-size:13px;color:#aaa;margin-top:6px;min-height:18px;transition:opacity .3s}
+
+/* Result */
+.result-box{background:rgba(255,255,255,.65);border-radius:20px;padding:14px 24px;text-align:center;box-shadow:0 4px 18px rgba(0,0,0,.1);min-width:220px;min-height:72px;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:all .4s ease;margin-bottom:8px}
+.result-swatch{width:60px;height:60px;border-radius:50%;border:4px solid rgba(255,255,255,.9);box-shadow:0 4px 14px rgba(0,0,0,.2);transition:background .5s ease;margin-bottom:8px;display:none}
+.result-name{font-size:20px;font-weight:700;color:#333;transition:color .4s}
+.result-formula{font-size:13px;color:#888;margin-top:3px;min-height:16px}
+
+/* Mix / Clear buttons */
+.action-row{display:flex;gap:12px;margin-top:4px}
+.mix-btn{padding:11px 28px;border-radius:50px;border:none;font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;transition:transform .15s,box-shadow .15s;box-shadow:0 4px 14px rgba(0,0,0,.15)}
+.mix-btn:active{transform:scale(.95)}
+.btn-mix{background:linear-gradient(135deg,#FF6BD6,#6BDDFF);color:#fff}
+.btn-clear{background:rgba(255,255,255,.7);color:#888}
+
+/* Particles */
+.drop-particle{position:absolute;border-radius:50%;pointer-events:none;z-index:20;animation:dropAnim .7s ease-out forwards}
+@keyframes dropAnim{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0}}
+.sparkle{position:absolute;pointer-events:none;z-index:25;font-size:20px;animation:sparkleAnim .7s ease-out forwards}
+@keyframes sparkleAnim{0%{transform:scale(0) rotate(0);opacity:1}50%{transform:scale(1.3) rotate(180deg);opacity:1}100%{transform:scale(0) rotate(360deg);opacity:0}}
+.splash-ring{position:absolute;border-radius:50%;border:3px solid;pointer-events:none;z-index:22;animation:ringAnim .6s ease-out forwards}
+@keyframes ringAnim{0%{width:10px;height:10px;opacity:.8;margin-left:-5px;margin-top:-5px}100%{width:80px;height:80px;opacity:0;margin-left:-40px;margin-top:-40px}}
+
+/* Combo hint list */
+.hints-row{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;max-width:420px;padding:0 8px}
+.hint-chip{font-size:11px;background:rgba(255,255,255,.6);border-radius:20px;padding:4px 10px;color:#666;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.hint-dot{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle;margin:0 2px;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+
+/* Celebration overlay */
+#celebrate{position:fixed;inset:0;pointer-events:none;z-index:100;display:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="page-header">
+    <button class="back-btn" onclick="goBack()">&#8592;</button>
+    <div class="page-title">🎨 Color Mixing!</div>
+  </div>
+
+  <div class="main-area">
+    <div class="palette-label">Pick TWO colors to mix</div>
+
+    <div class="palette" id="palette"></div>
+
+    <div class="bowl-area">
+      <div class="bowl-wrapper" id="bowlWrapper">
+        <div class="bowl-glow" id="bowlGlow"></div>
+        <svg class="bowl-svg" viewBox="0 0 150 140" id="bowlSvg">
+          <!-- liquid inside bowl -->
+          <ellipse id="liquidEllipse" class="bowl-liquid" cx="75" cy="95" rx="52" ry="18" fill="#ddd" opacity="0.3"/>
+          <path id="liquidPath" class="bowl-liquid" d="M23,95 Q23,128 75,128 Q127,128 127,95 Z" fill="#ddd" opacity="0.3"/>
+          <!-- bowl shape (on top of liquid) -->
+          <path d="M18,60 Q16,130 75,132 Q134,130 132,60 Z" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="5"/>
+          <path d="M18,60 Q16,130 75,132 Q134,130 132,60 Z" fill="rgba(255,255,255,0.15)"/>
+          <!-- rim -->
+          <ellipse cx="75" cy="60" rx="57" ry="12" fill="rgba(255,255,255,0.7)" stroke="rgba(255,255,255,0.9)" stroke-width="3"/>
+          <!-- shine -->
+          <ellipse cx="58" cy="80" rx="8" ry="18" fill="rgba(255,255,255,0.25)" transform="rotate(-20,58,80)"/>
+          <!-- base -->
+          <rect x="60" y="130" width="30" height="8" rx="4" fill="rgba(255,255,255,0.6)"/>
+          <ellipse cx="75" cy="138" rx="22" ry="5" fill="rgba(255,255,255,0.55)"/>
+        </svg>
+      </div>
+      <div class="drop-hint" id="dropHint">Tap a color above to add it!</div>
+    </div>
+
+    <div class="result-box" id="resultBox">
+      <div class="result-swatch" id="resultSwatch"></div>
+      <div class="result-name" id="resultName">Pick two colors!</div>
+      <div class="result-formula" id="resultFormula"></div>
+    </div>
+
+    <div class="action-row">
+      <button class="mix-btn btn-mix" id="mixBtn" onclick="doMix()">✨ Mix!</button>
+      <button class="mix-btn btn-clear" onclick="clearMix()">🗑 Clear</button>
+    </div>
+
+    <div class="hints-row" id="hintsRow"></div>
+  </div>
+</div>
+
+<div id="celebrate"></div>
+
+<script>
+// ── Color definitions ──────────────────────────────────────────────────────
+const COLORS = [
+  { id:'red',    hex:'#F44336', name:'Red'    },
+  { id:'orange', hex:'#FF9800', name:'Orange' },
+  { id:'yellow', hex:'#FFEB3B', name:'Yellow' },
+  { id:'green',  hex:'#4CAF50', name:'Green'  },
+  { id:'blue',   hex:'#2196F3', name:'Blue'   },
+  { id:'purple', hex:'#9C27B0', name:'Purple' },
+  { id:'pink',   hex:'#E91E98', name:'Pink'   },
+  { id:'white',  hex:'#F5F5F5', name:'White'  },
+  { id:'black',  hex:'#212121', name:'Black'  },
+  { id:'brown',  hex:'#795548', name:'Brown'  },
+];
+
+// key: sorted ids joined by '+', value: { hex, name, emoji }
+const RECIPES = {
+  'blue+red':      { hex:'#8E24AA', name:'Purple',      emoji:'🟣' },
+  'blue+yellow':   { hex:'#66BB6A', name:'Green',       emoji:'🟢' },
+  'red+yellow':    { hex:'#FF6F00', name:'Orange',      emoji:'🟠' },
+  'pink+white':    { hex:'#FFCDD2', name:'Light Pink',  emoji:'🌸' },
+  'blue+white':    { hex:'#90CAF9', name:'Light Blue',  emoji:'🩵' },
+  'red+white':     { hex:'#EF9A9A', name:'Light Red',   emoji:'🌺' },
+  'green+white':   { hex:'#A5D6A7', name:'Mint Green',  emoji:'🌿' },
+  'black+white':   { hex:'#9E9E9E', name:'Grey',        emoji:'🩶' },
+  'red+green':     { hex:'#8D6E63', name:'Muddy Brown',  emoji:'🟫' },
+  'blue+green':    { hex:'#00ACC1', name:'Teal',        emoji:'🩵' },
+  'orange+red':    { hex:'#E53935', name:'Scarlet',     emoji:'❤️' },
+  'orange+yellow': { hex:'#FFD740', name:'Golden Yellow',emoji:'⭐' },
+  'purple+blue':   { hex:'#5C6BC0', name:'Indigo',      emoji:'💜' },
+  'pink+purple':   { hex:'#CE93D8', name:'Lavender',    emoji:'💜' },
+  'orange+white':  { hex:'#FFCC80', name:'Peach',       emoji:'🍑' },
+  'black+red':     { hex:'#B71C1C', name:'Dark Red',    emoji:'🍷' },
+  'black+blue':    { hex:'#1A237E', name:'Navy Blue',   emoji:'🌌' },
+  'black+yellow':  { hex:'#F57F17', name:'Dark Yellow', emoji:'🌻' },
+  'brown+white':   { hex:'#BCAAA4', name:'Tan',         emoji:'🏜️' },
+  'brown+red':     { hex:'#BF360C', name:'Rust',        emoji:'🧱' },
+  'brown+yellow':  { hex:'#F9A825', name:'Amber',       emoji:'🍯' },
+  'green+yellow':  { hex:'#CDDC39', name:'Lime',        emoji:'💚' },
+  'purple+red':    { hex:'#C62828', name:'Crimson',     emoji:'🌹' },
+  'orange+brown':  { hex:'#A1887F', name:'Clay',        emoji:'🪨' },
+  'pink+orange':   { hex:'#FF7043', name:'Coral',       emoji:'🪸' },
+  'blue+purple':   { hex:'#5C6BC0', name:'Indigo',      emoji:'💙' },
+};
+
+// ── State ──────────────────────────────────────────────────────────────────
+let selected = [];   // up to 2 color ids
+let mixed    = false;
+
+// ── Build palette ──────────────────────────────────────────────────────────
+function buildPalette() {
+  const palette = document.getElementById('palette');
+  COLORS.forEach(c => {
+    const btn = document.createElement('div');
+    btn.className = 'color-btn';
+    btn.id = 'cbtn-' + c.id;
+    btn.style.background = c.hex;
+    btn.innerHTML = `<span class="color-label">${c.name}</span>`;
+    btn.addEventListener('click', () => selectColor(c.id));
+    btn.addEventListener('touchend', e => { e.preventDefault(); selectColor(c.id); });
+    palette.appendChild(btn);
+  });
+}
+
+// ── Build hint chips ───────────────────────────────────────────────────────
+function buildHints() {
+  const row = document.getElementById('hintsRow');
+  const showcase = [
+    ['red','blue'],['red','yellow'],['blue','yellow'],['pink','white'],
+    ['black','white'],['blue+green'],['orange','white']
+  ];
+  const display = [
+    {a:'red',b:'blue',r:'Purple'},
+    {a:'red',b:'yellow',r:'Orange'},
+    {a:'blue',b:'yellow',r:'Green'},
+    {a:'pink',b:'white',r:'Light Pink'},
+    {a:'black',b:'white',r:'Grey'},
+    {a:'blue',b:'green',r:'Teal'},
+    {a:'orange',b:'white',r:'Peach'},
+  ];
+  display.forEach(d => {
+    const ca = COLORS.find(c=>c.id===d.a);
+    const cb = COLORS.find(c=>c.id===d.b);
+    const key = [d.a,d.b].sort().join('+');
+    const res = RECIPES[key];
+    if(!ca||!cb||!res) return;
+    const chip = document.createElement('div');
+    chip.className = 'hint-chip';
+    chip.innerHTML =
+      `<span class="hint-dot" style="background:${ca.hex}"></span>` +
+      `+<span class="hint-dot" style="background:${cb.hex}"></span>` +
+      ` = <span style="color:${res.hex};font-weight:700">${res.name}</span>`;
+    chip.style.cursor='pointer';
+    chip.addEventListener('click',()=>{ clearMix(); selectColor(d.a); selectColor(d.b); doMix(); });
+    row.appendChild(chip);
+  });
+}
+
+// ── Select a color ─────────────────────────────────────────────────────────
+function selectColor(id) {
+  if (mixed) clearMix();
+
+  // Toggle off if already selected
+  if (selected.includes(id)) {
+    selected = selected.filter(s => s !== id);
+    document.getElementById('cbtn-'+id).classList.remove('selected');
+    updateBowl();
+    updateHint();
+    return;
+  }
+
+  if (selected.length >= 2) return; // already two chosen
+
+  selected.push(id);
+  const btn = document.getElementById('cbtn-'+id);
+  btn.classList.add('selected');
+
+  spawnDropIntoButton(btn, id);
+  updateBowl();
+  updateHint();
+
+  if (selected.length === 2) {
+    setTimeout(doMix, 500);
+  }
+}
+
+// ── Animate a drop flying from button toward bowl ─────────────────────────
+function spawnDropIntoButton(btn, colorId) {
+  const color = COLORS.find(c=>c.id===colorId);
+  const rect = btn.getBoundingClientRect();
+  const bowlRect = document.getElementById('bowlWrapper').getBoundingClientRect();
+  const startX = rect.left + rect.width/2;
+  const startY = rect.top + rect.height/2;
+  const endX = bowlRect.left + bowlRect.width/2;
+  const endY = bowlRect.top + bowlRect.height * .7;
+
+  for(let i=0;i<6;i++){
+    const p = document.createElement('div');
+    p.className='drop-particle';
+    p.style.cssText = `
+      left:${startX - 6}px;top:${startY - 6}px;
+      width:12px;height:12px;
+      background:${color.hex};
+      --dx:${endX - startX + (Math.random()-0.5)*40}px;
+      --dy:${endY - startY + (Math.random()-0.5)*20}px;
+      animation-delay:${i*60}ms;
+    `;
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(), 900);
+  }
+}
+
+// ── Update bowl liquid color ───────────────────────────────────────────────
+function updateBowl() {
+  const liqColor = getBowlColor();
+  document.getElementById('liquidEllipse').setAttribute('fill', liqColor);
+  document.getElementById('liquidPath').setAttribute('fill', liqColor);
+  document.getElementById('liquidEllipse').setAttribute('opacity', selected.length ? '0.85' : '0.3');
+  document.getElementById('liquidPath').setAttribute('opacity', selected.length ? '0.85' : '0.3');
+  document.getElementById('bowlGlow').style.background = liqColor;
+  document.getElementById('bowlGlow').style.opacity = selected.length ? '0.55' : '0';
+}
+
+function getBowlColor() {
+  if (selected.length === 0) return '#ddd';
+  if (selected.length === 1) return COLORS.find(c=>c.id===selected[0]).hex;
+  const key = [...selected].sort().join('+');
+  return RECIPES[key] ? RECIPES[key].hex : blendHex(selected[0], selected[1]);
+}
+
+function blendHex(id1, id2) {
+  const c1 = hexToRgb(COLORS.find(c=>c.id===id1).hex);
+  const c2 = hexToRgb(COLORS.find(c=>c.id===id2).hex);
+  const r = Math.round((c1.r+c2.r)/2);
+  const g = Math.round((c1.g+c2.g)/2);
+  const b = Math.round((c1.b+c2.b)/2);
+  return `rgb(${r},${g},${b})`;
+}
+
+function hexToRgb(hex) {
+  const n = parseInt(hex.replace('#',''), 16);
+  return {r:(n>>16)&255, g:(n>>8)&255, b:n&255};
+}
+
+// ── Update hint text ───────────────────────────────────────────────────────
+function updateHint() {
+  const hint = document.getElementById('dropHint');
+  if (selected.length === 0) hint.textContent = 'Tap a color above to add it!';
+  else if (selected.length === 1) hint.textContent = 'Now pick a second color!';
+  else hint.textContent = 'Ready to mix! ✨';
+}
+
+// ── Do the mix ────────────────────────────────────────────────────────────
+function doMix() {
+  if (selected.length < 2) return;
+  mixed = true;
+
+  const key = [...selected].sort().join('+');
+  const recipe = RECIPES[key];
+  const name1 = COLORS.find(c=>c.id===selected[0]).name;
+  const name2 = COLORS.find(c=>c.id===selected[1]).name;
+  const resultHex = recipe ? recipe.hex : blendHex(selected[0], selected[1]);
+  const resultName = recipe ? recipe.name : 'New Color';
+  const resultEmoji = recipe ? recipe.emoji : '🎨';
+
+  // Show result
+  const swatch = document.getElementById('resultSwatch');
+  swatch.style.background = resultHex;
+  swatch.style.display = 'block';
+  document.getElementById('resultName').textContent = resultEmoji + ' ' + resultName + '!';
+  document.getElementById('resultFormula').textContent = name1 + ' + ' + name2 + ' = ' + resultName;
+
+  // Splash effect in bowl
+  spawnSplash(resultHex);
+
+  // Celebrate
+  spawnSparkles(resultHex);
+  if (recipe) celebrate();
+
+  // Mix btn → remix hint
+  document.getElementById('mixBtn').textContent = '🔄 Try Again!';
+  document.getElementById('dropHint').textContent = `You made ${resultName}! 🎉`;
+}
+
+// ── Splash particles in bowl ───────────────────────────────────────────────
+function spawnSplash(hex) {
+  const wrapper = document.getElementById('bowlWrapper');
+  const rect = wrapper.getBoundingClientRect();
+  const cx = rect.left + rect.width/2;
+  const cy = rect.top + rect.height * 0.68;
+
+  // ring
+  const ring = document.createElement('div');
+  ring.className = 'splash-ring';
+  ring.style.cssText = `left:${cx}px;top:${cy}px;border-color:${hex};`;
+  document.body.appendChild(ring);
+  setTimeout(()=>ring.remove(), 700);
+
+  // drops
+  for(let i=0;i<10;i++){
+    const angle = (i/10)*Math.PI*2;
+    const dist = 30+Math.random()*25;
+    const p = document.createElement('div');
+    p.className='drop-particle';
+    const size = 6+Math.random()*8;
+    p.style.cssText=`left:${cx-size/2}px;top:${cy-size/2}px;width:${size}px;height:${size}px;background:${hex};--dx:${Math.cos(angle)*dist}px;--dy:${Math.sin(angle)*dist-20}px;animation-delay:${i*30}ms`;
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(),900);
+  }
+}
+
+// ── Sparkles ──────────────────────────────────────────────────────────────
+function spawnSparkles(hex) {
+  const emojis = ['✨','⭐','🌟','💫','🎊'];
+  for(let i=0;i<8;i++){
+    const s = document.createElement('div');
+    s.className='sparkle';
+    s.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+    s.style.cssText=`left:${10+Math.random()*80}vw;top:${10+Math.random()*70}vh;animation-delay:${i*80}ms`;
+    document.body.appendChild(s);
+    setTimeout(()=>s.remove(),900);
+  }
+}
+
+// ── Celebration confetti ──────────────────────────────────────────────────
+function celebrate() {
+  const colors = ['#FF6BD6','#6BDDFF','#FFD66B','#A5D6A7','#CE93D8'];
+  for(let i=0;i<30;i++){
+    const c = document.createElement('div');
+    c.className='drop-particle';
+    const size = 8+Math.random()*10;
+    const col = colors[Math.floor(Math.random()*colors.length)];
+    c.style.cssText=`
+      left:${Math.random()*100}vw;top:-10px;
+      width:${size}px;height:${size}px;
+      background:${col};border-radius:${Math.random()>.5?'50%':'3px'};
+      --dx:${(Math.random()-.5)*60}px;
+      --dy:${60+Math.random()*80}vh;
+      animation-duration:${1+Math.random()*.8}s;
+      animation-delay:${i*40}ms;
+    `;
+    document.body.appendChild(c);
+    setTimeout(()=>c.remove(), 2200);
+  }
+}
+
+// ── Clear ─────────────────────────────────────────────────────────────────
+function clearMix() {
+  selected = [];
+  mixed = false;
+  document.querySelectorAll('.color-btn').forEach(b=>b.classList.remove('selected'));
+  updateBowl();
+  updateHint();
+  document.getElementById('resultSwatch').style.display='none';
+  document.getElementById('resultName').textContent='Pick two colors!';
+  document.getElementById('resultFormula').textContent='';
+  document.getElementById('mixBtn').textContent='✨ Mix!';
+}
+
+// ── Back button ───────────────────────────────────────────────────────────
+function goBack() {
+  if (document.referrer) window.history.back();
+  else window.location.href = 'Naia_Playground.html';
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+buildPalette();
+buildHints();
+updateBowl();
+</script>
+</body>
+</html>
