@@ -1522,6 +1522,7 @@ const STORY_ANIMALS=['pig1','pig2','pig3','wolf'];
   function loginWithProfile(profile) {
     currentProfile = profile;
     ProfileManager.updateLastLogin(profile.id);
+    try { localStorage.setItem('naia-last-session', profile.id); } catch(e) {}
 
     // Reset to defaults first (important when switching profiles)
     NaiaAI.resetToDefaults();
@@ -1584,7 +1585,7 @@ const STORY_ANIMALS=['pig1','pig2','pig3','wolf'];
   };
 
 
-  // Always require PIN on launch — auto-create profiles if missing
+  // Auto-resume last session or show login
   (function firstRunSetup() {
     try {
       const profiles = ProfileManager.loadProfiles();
@@ -1598,13 +1599,18 @@ const STORY_ANIMALS=['pig1','pig2','pig3','wolf'];
       if (!all.find(p => p.name === 'Naio Test')) {
         ProfileManager.createProfile('Naio Test', '1234', 'bear');
       }
-      // Always show login screen with both profiles
+      // Auto-resume last session if available
+      const lastId = localStorage.getItem('naia-last-session');
       const updated = ProfileManager.loadProfiles();
-      renderLoginScreen();
-      if (updated.length === 1) openPinEntry(updated[0]);
+      const lastProfile = lastId ? updated.find(p => p.id === lastId) : null;
+      if (lastProfile) {
+        loginWithProfile(lastProfile);
+      } else {
+        renderLoginScreen();
+        if (updated.length === 1) openPinEntry(updated[0]);
+      }
     } catch(e) {
       console.error('Login error:', e);
-      // Always force login screen — never bypass to home on error
       try { renderLoginScreen(); } catch(e2) {}
     }
   })();
@@ -1992,8 +1998,6 @@ document.getElementById('screen-home').addEventListener('pointerdown',e=>{
       html+='<button class="pd-profile-btn edit" id="pdEditName">Edit Name</button>';
       html+='<button class="pd-profile-btn edit" id="pdChangePIN">Change PIN</button>';
       html+='<button class="pd-profile-btn delete" id="pdDeleteProfile">Delete Profile</button>';
-      html+='<button class="pd-profile-btn" style="background:#E8F5E9;color:#2E7D32" id="pdExportSave">📤 Export Save</button>';
-      html+='<button class="pd-profile-btn" style="background:#E3F2FD;color:#1565C0" id="pdImportSave">📥 Import Save</button>';
       html+='</div></div>';
     }
     // Summary
@@ -2074,29 +2078,6 @@ document.getElementById('screen-home').addEventListener('pointerdown',e=>{
         ProfileManager.deleteProfile(currentProfile.id);
         if(typeof _loginShowScreen==='function') _loginShowScreen();
       }
-    };
-    const exportBtn=document.getElementById('pdExportSave');
-    if(exportBtn) exportBtn.onclick=function(){
-      try{
-        const key=ProfileManager.getStorageKey();
-        const data={save:localStorage.getItem(key),profile:JSON.stringify(currentProfile)};
-        const code=btoa(JSON.stringify(data));
-        navigator.clipboard.writeText(code).then(()=>alert('Save code copied to clipboard!\n\nPaste it on the other device using Import Save.')).catch(()=>prompt('Copy this save code:',code));
-      }catch(e){alert('Could not export save.');}
-    };
-    const importBtn=document.getElementById('pdImportSave');
-    if(importBtn) importBtn.onclick=function(){
-      const code=prompt('Paste save code here:');
-      if(!code)return;
-      try{
-        const data=JSON.parse(atob(code.trim()));
-        const key=ProfileManager.getStorageKey();
-        if(data.save)localStorage.setItem(key,data.save);
-        NaiaAI.load();
-        Progress.updateXPBar();
-        renderParentContent();
-        alert('Save imported successfully!');
-      }catch(e){alert('Invalid save code. Please try again.');}
     };
     // Settings event handlers
     document.getElementById('pdSoundToggle').onclick=function(){this.classList.toggle('on');window._naiaSound=this.classList.contains('on')};
