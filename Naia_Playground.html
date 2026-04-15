@@ -1585,7 +1585,7 @@ const STORY_ANIMALS=['pig1','pig2','pig3','wolf'];
   };
 
 
-  // Always auto-login as Naia
+  // Setup profiles and show login
   (function firstRunSetup() {
     try {
       let profiles = ProfileManager.loadProfiles();
@@ -1597,13 +1597,8 @@ const STORY_ANIMALS=['pig1','pig2','pig3','wolf'];
       const naiaProfile = profiles.find(p => p.name === 'Naia');
       if (naiaProfile && naiaProfile.pin !== '2023') {
         ProfileManager.updateProfile(naiaProfile.id, {pin:'2023'});
-        naiaProfile.pin = '2023';
       }
-      if (naiaProfile) {
-        loginWithProfile(naiaProfile);
-      } else {
-        renderLoginScreen();
-      }
+      renderLoginScreen();
     } catch(e) {
       console.error('Login error:', e);
       try { renderLoginScreen(); } catch(e2) {}
