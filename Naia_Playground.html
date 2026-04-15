@@ -1592,8 +1592,11 @@ const STORY_ANIMALS=['pig1','pig2','pig3','wolf'];
       if (profiles.length === 0) {
         ProfileManager.createProfile('Naia', '2023', 'unicorn');
       }
-      // Remove old "Test" profile if it exists
+      // Ensure Naia's PIN is always 2023
       const all = ProfileManager.loadProfiles();
+      const naiaProfile = all.find(p => p.name === 'Naia');
+      if (naiaProfile && naiaProfile.pin !== '2023') ProfileManager.updateProfile(naiaProfile.id, {pin:'2023'});
+      // Remove old "Test" profile if it exists
       const oldTest = all.find(p => p.name === 'Test');
       if (oldTest) ProfileManager.deleteProfile(oldTest.id);
       if (!all.find(p => p.name === 'Naio Test')) {
