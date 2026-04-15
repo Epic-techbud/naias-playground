@@ -1585,32 +1585,24 @@ const STORY_ANIMALS=['pig1','pig2','pig3','wolf'];
   };
 
 
-  // Auto-resume last session or show login
+  // Always auto-login as Naia
   (function firstRunSetup() {
     try {
-      const profiles = ProfileManager.loadProfiles();
-      if (profiles.length === 0) {
+      let profiles = ProfileManager.loadProfiles();
+      if (!profiles.find(p => p.name === 'Naia')) {
         ProfileManager.createProfile('Naia', '2023', 'unicorn');
       }
+      profiles = ProfileManager.loadProfiles();
       // Ensure Naia's PIN is always 2023
-      const all = ProfileManager.loadProfiles();
-      const naiaProfile = all.find(p => p.name === 'Naia');
-      if (naiaProfile && naiaProfile.pin !== '2023') ProfileManager.updateProfile(naiaProfile.id, {pin:'2023'});
-      // Remove old "Test" profile if it exists
-      const oldTest = all.find(p => p.name === 'Test');
-      if (oldTest) ProfileManager.deleteProfile(oldTest.id);
-      if (!all.find(p => p.name === 'Naio Test')) {
-        ProfileManager.createProfile('Naio Test', '1234', 'bear');
+      const naiaProfile = profiles.find(p => p.name === 'Naia');
+      if (naiaProfile && naiaProfile.pin !== '2023') {
+        ProfileManager.updateProfile(naiaProfile.id, {pin:'2023'});
+        naiaProfile.pin = '2023';
       }
-      // Auto-resume last session if available
-      const lastId = localStorage.getItem('naia-last-session');
-      const updated = ProfileManager.loadProfiles();
-      const lastProfile = lastId ? updated.find(p => p.id === lastId) : null;
-      if (lastProfile) {
-        loginWithProfile(lastProfile);
+      if (naiaProfile) {
+        loginWithProfile(naiaProfile);
       } else {
         renderLoginScreen();
-        if (updated.length === 1) openPinEntry(updated[0]);
       }
     } catch(e) {
       console.error('Login error:', e);
