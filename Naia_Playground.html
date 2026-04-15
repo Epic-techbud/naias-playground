@@ -1992,6 +1992,8 @@ document.getElementById('screen-home').addEventListener('pointerdown',e=>{
       html+='<button class="pd-profile-btn edit" id="pdEditName">Edit Name</button>';
       html+='<button class="pd-profile-btn edit" id="pdChangePIN">Change PIN</button>';
       html+='<button class="pd-profile-btn delete" id="pdDeleteProfile">Delete Profile</button>';
+      html+='<button class="pd-profile-btn" style="background:#E8F5E9;color:#2E7D32" id="pdExportSave">📤 Export Save</button>';
+      html+='<button class="pd-profile-btn" style="background:#E3F2FD;color:#1565C0" id="pdImportSave">📥 Import Save</button>';
       html+='</div></div>';
     }
     // Summary
@@ -2072,6 +2074,29 @@ document.getElementById('screen-home').addEventListener('pointerdown',e=>{
         ProfileManager.deleteProfile(currentProfile.id);
         if(typeof _loginShowScreen==='function') _loginShowScreen();
       }
+    };
+    const exportBtn=document.getElementById('pdExportSave');
+    if(exportBtn) exportBtn.onclick=function(){
+      try{
+        const key=ProfileManager.getStorageKey();
+        const data={save:localStorage.getItem(key),profile:JSON.stringify(currentProfile)};
+        const code=btoa(JSON.stringify(data));
+        navigator.clipboard.writeText(code).then(()=>alert('Save code copied to clipboard!\n\nPaste it on the other device using Import Save.')).catch(()=>prompt('Copy this save code:',code));
+      }catch(e){alert('Could not export save.');}
+    };
+    const importBtn=document.getElementById('pdImportSave');
+    if(importBtn) importBtn.onclick=function(){
+      const code=prompt('Paste save code here:');
+      if(!code)return;
+      try{
+        const data=JSON.parse(atob(code.trim()));
+        const key=ProfileManager.getStorageKey();
+        if(data.save)localStorage.setItem(key,data.save);
+        NaiaAI.load();
+        Progress.updateXPBar();
+        renderParentContent();
+        alert('Save imported successfully!');
+      }catch(e){alert('Invalid save code. Please try again.');}
     };
     // Settings event handlers
     document.getElementById('pdSoundToggle').onclick=function(){this.classList.toggle('on');window._naiaSound=this.classList.contains('on')};
